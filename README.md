@@ -20,6 +20,21 @@ This system has three parts:
 2.  **Google Apps Script:** A smart "robot" that lives in your Google account. It constantly watches your new emails for specific attachments.
 3.  **iOS Shortcut:** A button on your iPhone home screen that instantly opens the latest file.
 
+### **How the Script Works: A Plain English Guide**
+
+Think of the script you're about to install as a highly organized digital assistant working for you 24/7. It doesn't read the *content* of your emails; it only looks at the filenames of incoming attachments. Here’s its step-by-step process:
+
+1.  **Wakes Up on a Schedule:** Every 15 minutes, the script wakes up and gets to work.
+2.  **Scans for New Mail:** It asks Gmail, "Are there any new, unread emails that have a PDF attachment?"
+3.  **Inspects Attachments:** If it finds any, it looks at the name of each PDF file.
+4.  **Looks for Keywords:** It checks the filename against its list of keywords (like "callsheet", "CS", "unit list", etc.). Its search is smart, so it knows to match "CS" as a whole word, not as part of "specs".
+5.  **Files It Away:** If it finds a match, it saves a copy of that PDF to the correct folder in your Google Drive—for example, a file with "callsheet" in the name goes into the "Call Sheets" folder.
+6.  **Keeps Things Tidy:** If a file named `callsheet.pdf` already exists, the script cleverly moves the old version into a subfolder named "old" (stamping it with the date and time) *before* saving the new one. This ensures the main file in the folder is always the absolute latest version.
+7.  **Finds the Newest:** If you receive multiple unread emails with call sheets at once, the script is smart enough to identify which email is the most recent and will only save that one, ignoring the older ones.
+8.  **Marks as Done:** Once it has saved an attachment from an email, it marks that email as "read". This is its signal that the work is done, so it doesn't accidentally process the same email again on its next run.
+
+This entire process happens automatically in the background, ensuring your production folders are always effortlessly up to date.
+
 -----
 
 ### **Part 1: The Setup (10-Minute Guide)**
@@ -214,7 +229,7 @@ The first time you save the trigger, Google will ask for permission.
 
 ### **Part 2: One-Tap Access on Your iPhone**
 
-Follow this much simpler and more reliable method to create shortcuts to your files.
+Follow this reliable method to create shortcuts to your files.
 
 #### **Creating the Siri Shortcut**
 
