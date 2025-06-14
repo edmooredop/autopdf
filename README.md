@@ -1,8 +1,16 @@
-## **A Guide to Automating Production Documents**
+## **A Cinematographer's Guide to Automating Production Documents**
 
 **The Problem:** You're on set, and a last-minute change comes through. Do you have the latest call sheet? Are you frantically searching through your emails for the most recent unit list or movement order?
 
 **The Solution:** This guide will help you set up a free, "set it and forget it" system that automatically saves the latest versions of key production documents to a dedicated folder in your Google Drive. Using an iOS Shortcut, you can then access the latest file with a single tap, confident you're always looking at the most current version.
+
+### **What You'll Need**
+
+Before you begin, make sure you have the following:
+
+  * A **Google Account** (which includes Gmail and Google Drive).
+  * An **iPhone or iPad**.
+  * The official **Google Drive app** installed on your iOS device from the App Store.
 
 ### **How It Works: The Big Picture**
 
@@ -193,29 +201,43 @@ This makes the script run automatically for you.
 
 #### **Step 5: Grant Permissions**
 
-The first time you save the trigger, Google will ask for permission for the script to access your Gmail and Drive.
+The first time you save the trigger, Google will ask for permission.
 
 1.  Choose your Google account.
-2.  You will see a "Google hasn't verified this app" warning. This is **normal and expected** because *you* wrote the code.
+2.  You will see a "Google hasn't verified this app" warning. This is **normal and expected** because *you* are the developer.
 3.  Click **Advanced**, then click **Go to [Your Project Name] (unsafe)**.
-4.  Review the permissions it needs (to read emails and manage files) and click **Allow**.
+4.  Review the permissions and click **Allow**.
 
-**Your automation is now live\!** It will check for new documents every 15 minutes.
+**Your automation is now live\!**
 
 -----
 
-### **Part 2: One-Tap Access with an iOS Shortcut**
+### **Part 2: One-Tap Access on Your iPhone**
 
-Now let's create the button on your iPhone to instantly open the latest file.
+Follow this much simpler and more reliable method to create shortcuts to your files.
 
-1.  Make sure you have the official **Google Drive app** installed on your iPhone.
-2.  Open the **Shortcuts** app and tap the **+** icon to create a new shortcut.
-3.  Tap **"Add Action"**.
-4.  Search for `Drive` and select the action **"Get File from Drive"**.
-5.  In the action that appears, tap the blue "File" text. A Google Drive file picker will appear. Navigate to the file you want this shortcut to open (e.g., `Film Production` \> `Call Sheets` \> `callsheet.pdf`).
-6.  Tap the search bar at the bottom again and search for the action **"Quick Look"**. Tap to add it. This will display the file you just selected.
-7.  Name your shortcut at the top (e.g., "Latest Call Sheet") and tap **Done**.
+#### **Creating the Siri Shortcut**
 
-You can add this shortcut to your iPhone's Home Screen for true one-tap access. Repeat these steps to create separate shortcuts for your Unit List, Movement Order, etc.
+1.  **Important First Step:** Wait for your script to save at least one file (e.g., `callsheet.pdf`). Open the **Google Drive app** on your iPhone and **manually open that file once**. This "primes" the app and lets it know the file is important to you.
+2.  In the Google Drive app, tap the **menu icon** (☰) in the top-left corner.
+3.  Go to **Settings**.
+4.  Tap on **Siri Shortcuts**.
+5.  Under the "Suggested" section, you should see an option like **"Open callsheet.pdf"**.
+6.  Tap the **`+`** icon next to that suggestion.
+7.  On the next screen, you can record a voice phrase like "Latest Call Sheet" if you use Siri, but you don't have to. Just tap **"Add to Siri"**.
 
-That's it\! Your digital assistant is now working for you, ensuring you always have the most current documents right at your fingertips.
+The shortcut is now created and saved in Apple's **Shortcuts** app. Repeat these steps for your other documents (Unit List, etc.) after you've opened them once in the Drive app.
+
+#### **Adding the Shortcut to Your Home Screen**
+
+For true one-tap access, let's put that new shortcut in a widget.
+
+1.  Go to your iPhone's Home Screen.
+2.  **Long-press** on an empty area until your apps start to jiggle.
+3.  Tap the **`+`** icon in the top-left corner.
+4.  Search for or scroll down to find the **Shortcuts** widget.
+5.  Choose a size (the single or four-shortcut size is best) and tap **"Add Widget"**.
+6.  The widget will appear on your screen. Tap it while in jiggle mode.
+7.  You can now choose which shortcut (or folder of shortcuts) you want it to display. Select the "Open callsheet.pdf" shortcut you just made.
+
+That's it\! You now have a button on your Home Screen that will always open the latest version of your document.
