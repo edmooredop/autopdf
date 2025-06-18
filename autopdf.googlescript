@@ -1,0 +1,197 @@
+/**
+ * A production-grade script to automatically find and save specific email attachments.
+ * v9: Simplifies the folder structure. Latest files are stored in the root folder.
+ * Old versions are moved to the document-type subfolder.
+ *
+ * @OnlyCurrentDoc
+ */
+
+// --- 1. CORE CONFIGURATION ---
+const ROOT_FOLDER_ID = '1yeX31ymcDXzTtyY4HzGQvtyiDDFAu89l';
+
+// --- 2. PUSHCUT NOTIFICATION CONFIGURATION (OPTIONAL) ---
+const PUSHCUT_CONFIG = {
+  ENABLED: true,
+  WEBHOOK_URL: 'https://api.pushcut.io/lG0iYds-RD8J9DYBe7M2l/notifications/New%20callsheet%20alert',
+  GEMINI_GEM_URL: 'https://gemini.google.com/gem/7bea8f8135b4'
+};
+
+// --- 3. DOCUMENT RULES ---
+const FILE_RULES = {
+  'callsheet.pdf': { keywords: ['call sheet', 'callsheet', 'CS'], folderName: 'Call Sheets' },
+  'prepdiary.pdf': { keywords: ['prep diary', 'prepdiary'], folderName: 'Prep Diaries' },
+  'unitlist.pdf': { keywords: ['unit list', 'unitlist'], folderName: 'Unit Lists' },
+  'movementorder.pdf': { keywords: ['Movement Order', 'MO'], folderName: 'Movement Orders' }
+};
+
+// --- SCRIPT LOGIC (No need to edit below this line) ---
+
+// --- WEB APP FUNCTION - v2: Acts as a "helper API" for iOS Shortcuts ---
+// This function receives a filename, finds the corresponding file in Drive, and redirects to its URL.
+// --- WEB APP FUNCTION - v3: Returns a plain text URL for programmatic use ---
+// This function receives a filename, finds the corresponding file in Drive, and returns
+// its URL as plain text, which the iOS Shortcut can understand directly.
+
+function doGet(e) {
+  // 1. Get the filename requested by the iOS Shortcut from the URL parameter.
+  const filename = e.parameter.filename;
+
+  if (!filename) {
+    // Return a plain text error
+    return ContentService.createTextOutput("Error: A 'filename' parameter is required.");
+  }
+
+  try {
+    // 2. Find the file with that exact name in the root folder.
+    const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+    const files = rootFolder.getFilesByName(filename);
+
+    if (files.hasNext()) {
+      // 3. If the file is found, get its direct URL.
+      const file = files.next();
+      const fileUrl = file.getUrl();
+      
+      console.log(`Web App returning plain text URL for '${filename}': ${fileUrl}`);
+      
+      // 4. Return the URL as a plain text response. This is the key change.
+      return ContentService.createTextOutput(fileUrl);
+
+    } else {
+      // If the file isn't found, return a plain text error.
+      return ContentService.createTextOutput(`Error: File not found: ${filename}`);
+    }
+
+  } catch (err) {
+    return ContentService.createTextOutput(`Error: An exception occurred: ${err.message}`);
+  }
+}
+
+function saveMostRecentAttachments() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    console.warn("Could not obtain lock. Skipping this run.");
+    return;
+  }
+  try {
+    console.log("Script run started at: " + new Date().toLocaleTimeString());
+    const folderCache = {};
+    const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+    folderCache[ROOT_FOLDER_ID] = rootFolder;
+    const processedTypes = new Set();
+    const searchQuery = 'is:unread has:attachment filename:pdf';
+    const threads = GmailApp.search(searchQuery);
+
+    if (threads.length === 0) {
+      console.log("No new emails to process.");
+      return;
+    }
+    console.log(`Found ${threads.length} unread email thread(s) to process.`);
+
+    threads.forEach(thread => {
+      const messages = thread.getMessages();
+      let threadMarkedAsRead = false;
+      messages.reverse().forEach(message => {
+        if (!message.isUnread()) return;
+        message.getAttachments().forEach(attachment => {
+          if (attachment.getContentType() !== 'application/pdf') return;
+          const attachmentName = attachment.getName();
+          console.log(`-- Checking attachment: '${attachmentName}'`);
+          for (const targetFilename in FILE_RULES) {
+            if (processedTypes.has(targetFilename)) continue;
+            const rule = FILE_RULES[targetFilename];
+            const foundKeyword = rule.keywords.find(keyword => {
+              const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(`(^|[^A-Za-z0-9])${escapedKeyword}([^A-Za-z0-9]|$)`, 'i');
+              return regex.test(attachmentName);
+            });
+
+            if (foundKeyword) {
+              console.log(`   └─> Match found on keyword '${foundKeyword}'. Processing now.`);
+              const oldVersionsFolder = getOrCreateSubfolder(rootFolder, rule.folderName, folderCache);
+              
+              // MODIFICATION: Pass the rootFolder as the "latest" location and the type-specific
+              // folder as the "old versions" location.
+              const newFile = processFile(rootFolder, oldVersionsFolder, targetFilename, attachment);
+              
+              processedTypes.add(targetFilename);
+              if (!threadMarkedAsRead) { thread.markRead(); threadMarkedAsRead = true; }
+
+              if (targetFilename === 'callsheet.pdf' && PUSHCUT_CONFIG.ENABLED && newFile) {
+                const title = "New Call Sheet Received";
+                const message = `Saved "${newFile.getName()}" at ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                sendPushcutNotification(title, message, newFile.getUrl(), PUSHCUT_CONFIG.GEMINI_GEM_URL);
+              }
+            }
+          }
+        });
+      });
+    });
+    console.log("Script run finished. Processed types: ", Array.from(processedTypes));
+  } catch (e) {
+    console.error("An error occurred: " + e.stack);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * MODIFIED: Handles the new file structure.
+ * @param {GoogleAppsScript.Drive.Folder} latestFileFolder The root folder where the latest file is stored.
+ * @param {GoogleAppsScript.Drive.Folder} oldVersionsFolder The subfolder where old versions are moved.
+ * @param {string} targetFilename The standardized name for the file.
+ * @param {GoogleAppsScript.Gmail.GmailAttachment} attachment The new attachment to save.
+ * @return {GoogleAppsScript.Drive.File} The newly created file object.
+ */
+function processFile(latestFileFolder, oldVersionsFolder, targetFilename, attachment) {
+  // Check if an older version of the file exists in the LATEST file folder (the root).
+  const existingFiles = latestFileFolder.getFilesByName(targetFilename);
+
+  if (existingFiles.hasNext()) {
+    const oldFile = existingFiles.next();
+    const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+    const oldFilename = `${targetFilename.replace('.pdf', '')}_${timestamp}.pdf`;
+    
+    // Move the old file to the OLD VERSIONS folder (the type-specific subfolder).
+    console.log(`       └─> Moving existing file to '${oldVersionsFolder.getName()}' folder.`);
+    oldFile.moveTo(oldVersionsFolder).setName(oldFilename);
+  }
+  
+  // Save the new attachment with the standardized name in the LATEST file folder (the root).
+  const newFile = latestFileFolder.createFile(attachment.copyBlob()).setName(targetFilename);
+  console.log(`       └─> Saved new file to '${latestFileFolder.getName()}' folder.`);
+  return newFile;
+}
+
+// ... other helper functions (getOrCreateSubfolder, sendPushcutNotification, etc.) are unchanged ...
+
+function getOrCreateSubfolder(parentFolder, folderName, cache) {
+  const cacheKey = parentFolder.getId() + '_' + folderName;
+  if (cache[cacheKey]) { return cache[cacheKey]; }
+  const folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    const folder = folders.next(); cache[cacheKey] = folder; return folder;
+  }
+  const newFolder = parentFolder.createFolder(folderName); cache[cacheKey] = newFolder; return newFolder;
+}
+
+function sendPushcutNotification(title, message, pdfUrl, geminiUrl) {
+  if (!PUSHCUT_CONFIG.WEBHOOK_URL) {
+    console.error("Pushcut Webhook URL is missing in the configuration.");
+    return;
+  }
+  const payload = {
+    "title": title, "text": message, "actions": [
+      { "name": "Open PDF", "input": pdfUrl },
+      { "name": "Plan Travel", "input": geminiUrl }
+    ]
+  };
+  const options = {
+    method: "post", contentType: "application/json", payload: JSON.stringify(payload)
+  };
+  try {
+    UrlFetchApp.fetch(PUSHCUT_CONFIG.WEBHOOK_URL, options);
+    console.log("       └─> Pushcut notification sent successfully.");
+  } catch (e) {
+    console.error("Failed to send Pushcut notification: " + e.toString());
+  }
+}
